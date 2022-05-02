@@ -36,9 +36,10 @@ const DetectedToken = ({ setShowDetectedTokens }) => {
 
   const handleClearTokensSelection = async () => {
     // create a lodash chain on this object
-    const { selected: selectedTokens, deselected: deSelectedTokens } = chain(
-      tokensListDetected,
-    )
+    const {
+      selected: selectedTokens = [],
+      deselected: deSelectedTokens = [],
+    } = chain(tokensListDetected)
       // get the values
       .values()
       // create a new object with keys 'selected', 'deselected' and group the tokens
@@ -47,6 +48,7 @@ const DetectedToken = ({ setShowDetectedTokens }) => {
       .mapValues((group) => group.map(({ token }) => token))
       // Exit the chain and get the underlying value, an object.
       .value();
+
     selectedTokens.forEach((importedToken) => {
       trackEvent({
         event: EVENT_NAMES.TOKEN_ADDED,
@@ -61,20 +63,21 @@ const DetectedToken = ({ setShowDetectedTokens }) => {
         },
       });
     });
-    deSelectedTokens.forEach((ignoredToken) => {
+    if (deSelectedTokens.length > 0) {
+      const tokensDetailsList = deSelectedTokens.map(
+        ({ symbol, address }) => `${symbol} - ${address}`,
+      );
       trackEvent({
-        event: EVENT_NAMES.TOKEN_IGNORED,
+        event: EVENT_NAMES.TOKENS_IGNORED,
         category: EVENT.CATEGORIES.WALLET,
         sensitiveProperties: {
-          token_symbol: ignoredToken.symbol,
-          token_contract_address: ignoredToken.address,
-          token_decimal_precision: ignoredToken.decimals,
+          tokens: tokensDetailsList,
           source: EVENT.SOURCE.TOKEN.DETECTED,
           token_standard: TOKEN_STANDARDS.ERC20,
           asset_type: ASSET_TYPES.TOKEN,
         },
       });
-    });
+    }
     if (deSelectedTokens.length < detectedTokens.length) {
       await dispatch(ignoreTokens(deSelectedTokens));
       await dispatch(importTokens(selectedTokens));
@@ -98,7 +101,7 @@ const DetectedToken = ({ setShowDetectedTokens }) => {
 
   const onImport = async () => {
     // create a lodash chain on this object
-    const { selected: selectedTokens } = chain(tokensListDetected)
+    const { selected: selectedTokens = [] } = chain(tokensListDetected)
       .values()
       .groupBy((token) => (token.selected ? 'selected' : 'deselected'))
       .mapValues((group) => group.map(({ token }) => token))
